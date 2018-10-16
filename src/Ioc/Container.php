@@ -17,7 +17,7 @@ use \ReflectionFunctionAbstract;
 /**
  * Ioc Container
  */
-class Container implements ArrayAccess
+class Container implements ArrayAccess, ContainerInterface
 {
     /**
      * @var array 已注册的服务
@@ -91,17 +91,23 @@ class Container implements ArrayAccess
     }
 
     /**
+     * 注册对象服务
+     * @param mixed $object
+     */
+    public function object($object)
+    {
+        if (is_object($object)) {
+            $this->instances[get_class($object)] = $object;
+        }
+    }
+
+    /**
      * 注册实例服务
      * @param string $name
      * @param mixed $object 具体对象
      */
     public function instance($name, $object = null)
     {
-        if (is_object($name)) {
-            $this->instances[get_class($name)] = $name;
-            return;
-        }
-
         if (is_object($object)) {
             $this->instances[$this->normalize($name)] = $object;
         }
@@ -251,9 +257,9 @@ class Container implements ArrayAccess
      */
     protected function getClosure($class)
     {
-        return function (Container $container) use ($class) {
+        return $this->wrap(function (Container $container) use ($class) {
             return $container->instantiate($class, $container->getLastParams());
-        };
+        });
     }
 
     /**
@@ -339,7 +345,7 @@ class Container implements ArrayAccess
      * @throws Exception
      * @throws ReflectionException
      */
-    public function method($class, $method, array $params = [])
+    public function invokeMethod($class, $method, array $params = [])
     {
         $reflector = new \ReflectionMethod($class, $method);
         return $reflector->invokeArgs(is_object($class) ? $class : null, $this->dependence($reflector, $params));
@@ -353,7 +359,7 @@ class Container implements ArrayAccess
      * @throws Exception
      * @throws ReflectionException
      */
-    public function func($name, array $params = [])
+    public function invokeFunction($name, array $params = [])
     {
         $reflector = new \ReflectionFunction($name);
         return $reflector->invokeArgs($this->dependence($reflector, $params));
@@ -370,7 +376,7 @@ class Container implements ArrayAccess
     }
 
     /**
-     * 返回被包裹的闭包
+     * 闭包函数
      * @param Closure $closure
      * @return mixed
      */
